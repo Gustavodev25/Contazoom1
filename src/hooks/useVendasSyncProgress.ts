@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { API_CONFIG } from "@/lib/api-config";
 
 interface VendasSyncProgress {
   type: "connected" | "sync_start" | "sync_progress" | "sync_complete" | "sync_error" | "sync_warning" | "sync_debug" | "sync_continue";
@@ -57,30 +58,15 @@ export function useVendasSyncProgress(): UseVendasSyncProgressReturn {
       }
     }
 
-    // Use API_CONFIG to get the full URL (pointing to Render backend)
-    // We must import API_CONFIG dynamically or assume it's available globally if not imported.
-    // Since I cannot add imports easily with replace_file_content if they are at the top,
-    // I will assume I need to add the import or use a relative path if I can't.
-    // But wait, I can't add imports with replace_file_content easily without replacing the top of the file.
-    // I will use window.location.origin as fallback if API_CONFIG is not imported, but I should try to use the correct URL.
-    // Actually, I should have added the import. I'll do that in a separate step or use a multi-step approach.
-    // For now, I'll use a hardcoded check or try to use the global config if possible.
-    // But wait, I can just use the relative path if I didn't change API_CONFIG to return absolute.
-    // But I DID change API_CONFIG to return absolute.
-    // So I MUST use the absolute URL here.
+    // Use API_CONFIG to determine the URL.
+    // If API_CONFIG.baseURL is empty, it means we are using the local proxy.
+    // Our local proxy is at /api/meli/vendas/sync-progress.
+    const baseUrl = API_CONFIG.getApiUrl('/api/meli/vendas/sync-progress');
 
-    // Let's assume I will add the import in a separate tool call or use a trick.
-    // I'll use a dynamic import or just hardcode the logic for now to match API_CONFIG.
-
-    // Actually, I'll just use the relative path and let the browser handle it? 
-    // NO, if API_CONFIG points to Render, I want SSE to point to Render too.
-    // If I use relative path '/api/...', it hits Vercel.
-    // I want to hit Render.
-
-    // I will use a hardcoded env var check here as a temporary fix if I can't import API_CONFIG.
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://project-backend-rjoh.onrender.com";
-    const baseUrl = `${backendUrl.replace(/\/$/, "")}/api/meli/vendas/sync-progress`;
-
+    // Force usage of localhost:3000 if in dev and using proxy, to match user request if proxying to self.
+    // Actually, if the proxy at /api/... forwards to localhost:3000, and we are on localhost:3000, it loops.
+    // If we are on localhost:3001, it works.
+    
     const url = token ? `${baseUrl}?token=${token}` : baseUrl;
 
     console.log('[SSE useVendasSyncProgress] Connecting to:', url);

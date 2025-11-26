@@ -2179,7 +2179,7 @@ export async function POST(req: NextRequest) {
     const summary: AccountSummary = {
       id: account.id,
       nickname: account.nickname,
-      ml_user_id: account.ml_user_id,
+      ml_user_id: Number(account.ml_user_id),
       expires_at: account.expires_at.toISOString(),
     };
     summaries.push(summary);

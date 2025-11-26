@@ -1,5 +1,69 @@
 // Frete utilities for frontend
 
+interface FreteAdjustParams {
+  shipment_logistic_type: string;
+  base_cost: number | null;
+  shipment_list_cost: number | null;
+  shipping_option_cost: number | null;
+  shipment_cost: number | null;
+  order_cost: number | null;
+  quantity: number;
+}
+
+export function calcularFreteAdjust({
+  shipment_logistic_type,
+  base_cost,
+  shipment_list_cost,
+  shipping_option_cost,
+  shipment_cost,
+  order_cost,
+  quantity,
+}: FreteAdjustParams): number {
+  // 1) Se logistic_type for fulfillment, cross_docking ou xd_drop_off
+  if (['fulfillment', 'cross_docking', 'xd_drop_off'].includes(shipment_logistic_type)) {
+    // a. Se base_cost existir e for diferente de NULL
+    if (base_cost !== null) {
+      return -base_cost;
+    }
+    // b. Se base_cost for NULL, usar shipment_list_cost
+    if (shipment_list_cost !== null) {
+      return -shipment_list_cost;
+    }
+  }
+
+  // 2) Se logistic_type for self_service
+  if (shipment_logistic_type === 'self_service') {
+    // a. Se shipping_option_cost existir
+    if (shipping_option_cost !== null) {
+      return -shipping_option_cost;
+    }
+    // b. Se shipment_cost existir
+    if (shipment_cost !== null) {
+      return -shipment_cost;
+    }
+  }
+
+  // 3) Se logistic_type for drop_off
+  if (shipment_logistic_type === 'drop_off') {
+    // a. Se base_cost existir
+    if (base_cost !== null) {
+      return -base_cost;
+    }
+    // b. Se shipment_list_cost existir
+    if (shipment_list_cost !== null) {
+      return -shipment_list_cost;
+    }
+  }
+
+  // 4) Se nenhum dos anteriores, usar order_cost
+  if (order_cost !== null) {
+    return -order_cost;
+  }
+
+  // 5) Se ainda assim for NULL, retornar zero
+  return 0;
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
