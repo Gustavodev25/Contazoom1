@@ -48,7 +48,12 @@ export async function GET(req: NextRequest) {
     const accountIdsWithSales = new Set(accountsWithSales.map(item => item.meliAccountId));
 
     // Filtrar contas que não têm vendas (contas novas)
-    const newAccounts = allAccounts.filter(acc => !accountIdsWithSales.has(acc.id));
+    const newAccounts = allAccounts
+      .filter(acc => !accountIdsWithSales.has(acc.id))
+      .map(acc => ({
+        ...acc,
+        ml_user_id: acc.ml_user_id.toString()
+      }));
 
     return NextResponse.json({
       newAccounts,

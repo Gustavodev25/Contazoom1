@@ -8,8 +8,9 @@ export interface SessionPayload extends JWTPayload {
 }
 
 export function getAuthSecret(): string {
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.JWT_SECRET?.trim();
   if (!secret) {
+    console.error("❌ JWT_SECRET não encontrado nas variáveis de ambiente!");
     throw new Error(
       "JWT_SECRET não configurado. Defina a variável de ambiente antes de usar autenticação.",
     );
@@ -63,6 +64,8 @@ export async function tryVerifySessionToken(
 ): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
+    // Debug log enabled
+    console.log(`[Auth] Verifying token: ${token.substring(0, 10)}... (len: ${token.length})`);
     const secret = new TextEncoder().encode(getAuthSecret());
     const { payload } = await jwtVerify(token, secret);
 
@@ -71,8 +74,11 @@ export async function tryVerifySessionToken(
   } catch (error) {
     console.error(
       "Erro ao verificar token de sessão:",
-      (error as Error)?.message,
+      error instanceof Error ? error.message : String(error)
     );
+    if (error instanceof Error && error.message.includes("JWT_SECRET")) {
+      console.error("CRÍTICO: JWT_SECRET não está configurado corretamente!");
+    }
     return null;
   }
 }

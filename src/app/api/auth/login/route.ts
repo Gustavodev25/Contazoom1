@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { comparePassword, generateSessionToken } from '@/lib/auth';
+import { comparePassword, generateSessionToken, tryVerifySessionToken } from '@/lib/auth';
 
 /**
  * POST /api/auth/login
@@ -79,10 +79,18 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        // Verify token immediately to ensure validity
+        const verifyCheck = await tryVerifySessionToken(sessionToken);
+        if (!verifyCheck) {
+            console.error('[Login] ❌ ERRO FATAL: Token gerado não pôde ser verificado imediatamente!');
+            throw new Error('Erro na geração do token');
+        }
+        console.log('[Login] ✅ Token gerado e verificado com sucesso. Sub:', verifyCheck.sub);
+
         // Set HTTP-only cookie for session
         response.cookies.set('session', sessionToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: process.env.NODE_ENV === 'production' && !request.url.includes('localhost') && !request.url.includes('127.0.0.1'),
             sameSite: 'lax',
             maxAge: 60 * 60 * 24 * 7, // 7 days
             path: '/',

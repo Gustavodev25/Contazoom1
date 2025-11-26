@@ -51,7 +51,8 @@
       "Bash(git branch:*)",
       "Bash(tree:*)",
       "Bash(npm install)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(Select-String \"JWT_SECRET\")"
     ],
     "deny": [],
     "ask": []

@@ -532,6 +532,7 @@ export default function VendasMercadolivre() {
         
         <TabelaVendas 
           platform="Mercado Livre" 
+          vendas={vendas}
           isLoading={isLoading}
           isSyncing={isSyncing}
           syncProgress={progress}

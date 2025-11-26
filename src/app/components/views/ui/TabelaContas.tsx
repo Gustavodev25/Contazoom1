@@ -534,7 +534,11 @@ export default function TabelaContas({
           cache: "no-store",
           credentials: "include",
         });
-        if (!res.ok) throw new Error("Erro ao listar contas ML");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.error("[TabelaContas] Erro ao listar contas:", res.status, errData);
+          throw new Error(errData.details || "Erro ao listar contas ML");
+        }
         const rows: Array<{
           id: string;
           nickname: string | null;

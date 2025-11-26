@@ -32,6 +32,11 @@ export const API_CONFIG = {
         // Remove leading slash if present to avoid double slashes
         const cleanPath = path.startsWith('/') ? path.slice(1) : path;
 
+        // On client-side, prefer relative URLs to avoid CORS/cookie issues
+        if (typeof window !== 'undefined') {
+            return `/${cleanPath}`;
+        }
+
         if (this.baseURL) {
             // Use external backend URL
             return `${this.baseURL}/${cleanPath}`;

@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       message: "Token renovado com sucesso",
       account: {
         id: updated.id,
-        ml_user_id: updated.ml_user_id,
+        ml_user_id: updated.ml_user_id.toString(),
         expires_at: updated.expires_at,
       },
     });

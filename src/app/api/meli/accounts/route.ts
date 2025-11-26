@@ -6,15 +6,47 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const sessionCookie = req.cookies.get("session")?.value;
+
+  // Debug headers
+  console.log("[API_MELI_ACCOUNTS] Headers:", Object.fromEntries(req.headers.entries()));
+  console.log("[API_MELI_ACCOUNTS] Session Cookie:", sessionCookie ? `${sessionCookie.substring(0, 10)}...` : "MISSING");
+
+  let userId: string;
+
   try {
-    const { sub } = await assertSessionToken(sessionCookie);
+    const session = await assertSessionToken(sessionCookie);
+    userId = session.sub;
+  } catch (error) {
+    console.error("[API_MELI_ACCOUNTS] Auth error details:");
+    console.error("- Cookie present:", !!sessionCookie);
+    console.error("- Cookie length:", sessionCookie?.length);
+    console.error("- Error message:", error instanceof Error ? error.message : String(error));
+
+    return NextResponse.json({
+      error: "Unauthorized",
+      details: error instanceof Error ? error.message : String(error),
+      cookiePresent: !!sessionCookie
+    }, { status: 401 });
+  }
+
+  try {
     const rows = await prisma.meliAccount.findMany({
-      where: { userId: sub },
+      where: { userId },
       orderBy: { created_at: "desc" },
     });
-    return NextResponse.json(rows);
-  } catch {
-    return new NextResponse("Unauthorized", { status: 401 });
+
+    const serializedRows = rows.map((row) => ({
+      ...row,
+      ml_user_id: row.ml_user_id.toString(),
+    }));
+
+    return NextResponse.json(serializedRows);
+  } catch (error) {
+    console.error("[API_MELI_ACCOUNTS] Database error:", error);
+    return NextResponse.json({
+      error: "Internal Server Error",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 

@@ -165,6 +165,7 @@ export default function TabelaVendas({
   dataInicioPersonalizada = null,
   dataFimPersonalizada = null,
   syncProgress = null,
+  vendas: propVendas, // Recebe vendas via prop (renomeado para evitar conflito)
 }: TabelaVendasProps) {
   const toast = useToast();
   const [isStartingSync, setIsStartingSync] = useState(false);
@@ -189,7 +190,7 @@ export default function TabelaVendas({
   };
 
   const {
-    vendas,
+    vendas: vendasFromHook,
     contasConectadas,
     syncErrors,
     isTableLoading,
@@ -205,6 +206,9 @@ export default function TabelaVendas({
   } = useVendas(platform, {
     autoConnectSSE: true, // Conectar SSE automaticamente para detectar syncs em andamento
   });
+
+  // Prioriza vendas passadas via prop, senão usa do hook
+  const vendas = propVendas || vendasFromHook;
 
   const effectiveSyncProgress: SyncProgressTotals | null =
     syncProgress || hookSyncProgress || null;

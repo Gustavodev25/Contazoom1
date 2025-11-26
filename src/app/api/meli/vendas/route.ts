@@ -25,11 +25,14 @@ type RawDataWithOrder = JsonRecord & {
 };
 
 export async function GET(req: NextRequest) {
+  console.log("[API_MELI_VENDAS] Inciando busca de vendas");
   const sessionCookie = req.cookies.get("session")?.value;
   let session;
   try {
     session = await assertSessionToken(sessionCookie);
-  } catch {
+    console.log(`[API_MELI_VENDAS] Usuário autenticado: ${session.sub}`);
+  } catch (e) {
+    console.error("[API_MELI_VENDAS] Erro de autenticação:", e);
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -39,9 +42,10 @@ export async function GET(req: NextRequest) {
     const cachedData = cache.get<any>(cacheKey, 300000);
     
     if (cachedData) {
-      console.log(`[Cache Hit] Retornando vendas do Mercado Livre do cache`);
+      console.log(`[API_MELI_VENDAS] [Cache Hit] Retornando vendas do Mercado Livre do cache. Total: ${cachedData.total}`);
       return NextResponse.json(cachedData);
     }
+    console.log("[API_MELI_VENDAS] Cache Miss - Buscando no banco de dados...");
 
     const vendas = await prisma.meliVenda.findMany({
       where: { userId: session.sub },
@@ -81,6 +85,8 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { dataVenda: "desc" },
     });
+
+    console.log(`[API_MELI_VENDAS] Encontradas ${vendas.length} vendas no banco.`);
 
     const skusUnicos = Array.from(
       new Set(vendas.map((v) => v.sku).filter(Boolean) as string[]),
@@ -170,13 +176,18 @@ export async function GET(req: NextRequest) {
             null)
           : null;
 
+      // Conversão segura de ml_user_id para string
+      const contaId = venda.meliAccount?.ml_user_id 
+        ? String(venda.meliAccount.ml_user_id) 
+        : "";
+
       return {
         id: venda.orderId,
         dataVenda: venda.dataVenda.toISOString(),
         status: venda.status,
         conta: venda.conta,
         meliAccountId: venda.meliAccountId,
-        contaId: venda.meliAccount.ml_user_id.toString(),
+        contaId, // Usar a versão stringificada
         valorTotal,
         quantidade: venda.quantidade,
         unitario: Number(venda.unitario),
@@ -231,11 +242,11 @@ export async function GET(req: NextRequest) {
 
     // Armazenar no cache
     cache.set(cacheKey, response);
-    console.log(`[Cache Miss] Vendas do Mercado Livre salvas no cache`);
+    console.log(`[API_MELI_VENDAS] [Cache Miss] Vendas salvas no cache e retornadas.`);
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Erro ao buscar vendas:", error);
-    return new NextResponse("Erro interno do servidor", { status: 500 });
+    console.error("[API_MELI_VENDAS] Erro fatal ao buscar vendas:", error);
+    return new NextResponse(`Erro interno do servidor: ${error instanceof Error ? error.message : String(error)}`, { status: 500 });
   }
 }
