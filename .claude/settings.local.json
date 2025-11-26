@@ -48,7 +48,10 @@
       "Bash(Select-String \"NEXT_PUBLIC_API_URL\")",
       "Bash(Select-Object -First 50)",
       "Bash(Select-String \"NEXT_PUBLIC\")",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(tree:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []
