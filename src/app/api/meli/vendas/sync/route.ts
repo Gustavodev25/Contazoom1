@@ -1561,7 +1561,7 @@ async function prepareVendaData(
 
     const vendaBaseData = {
       dataVenda: dateString ? new Date(dateString) : new Date(),
-      status: truncateString(String(o.status ?? 'desconhecido').replace(/'_', ' '), 100),
+      status: truncateString(String(o.status ?? 'desconhecido').replace(/_/g, ' '), 100),
       conta: contaLabel,
       valorTotal: new Decimal(totalAmount),
       quantidade: quantity > 0 ? quantity : 1,
