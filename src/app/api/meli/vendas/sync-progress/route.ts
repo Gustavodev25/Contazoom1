@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertSessionToken } from "@/lib/auth";
+import { addUserConnection } from "@/lib/sse-progress";
 
 export const runtime = "nodejs";
 // Prevent Next.js from buffering the response
@@ -9,34 +11,100 @@ export async function GET(req: NextRequest) {
     process.env.RENDER_BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.BACKEND_URL ||
-    "http://localhost:3000";
+    "";
 
-  // Remove trailing slash if present
+  // Se não há backend configurado ou é localhost, usar SSE local
+  const isLocalMode = !backendUrl || backendUrl.includes("localhost") || backendUrl.includes("127.0.0.1");
+
+  if (isLocalMode) {
+    console.log(`[SSE Local] Usando SSE local para progresso de sincronização`);
+
+    // Autenticar usuário
+    const sessionCookie = req.cookies.get("session")?.value;
+    if (!sessionCookie) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    let userId: string;
+    try {
+      const session = await assertSessionToken(sessionCookie);
+      userId = session.sub;
+    } catch {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Criar ReadableStream para SSE
+    const stream = new ReadableStream({
+      start(controller) {
+        // Adicionar conexão ao mapa global
+        const cleanup = addUserConnection(userId, controller);
+
+        // Enviar evento de conexão estabelecida
+        const encoder = new TextEncoder();
+        const connectMessage = `data: ${JSON.stringify({
+          type: "connected",
+          message: "Conexão SSE estabelecida",
+          timestamp: new Date().toISOString()
+        })}\n\n`;
+        controller.enqueue(encoder.encode(connectMessage));
+
+        // Configurar heartbeat a cada 30 segundos para manter conexão viva
+        const heartbeatInterval = setInterval(() => {
+          try {
+            const heartbeatMessage = `data: ${JSON.stringify({
+              type: "heartbeat",
+              timestamp: new Date().toISOString()
+            })}\n\n`;
+            controller.enqueue(encoder.encode(heartbeatMessage));
+          } catch (error) {
+            console.warn("[SSE Local] Erro ao enviar heartbeat:", error);
+            clearInterval(heartbeatInterval);
+            cleanup();
+          }
+        }, 30000);
+
+        // Limpar intervalo quando conexão fechar
+        req.signal.addEventListener('abort', () => {
+          clearInterval(heartbeatInterval);
+          cleanup();
+        });
+      },
+      cancel() {
+        console.log(`[SSE Local] Conexão SSE cancelada para usuário`);
+      }
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Cache-Control",
+        "Access-Control-Allow-Credentials": "true"
+      },
+    });
+  }
+
+  // Modo proxy para backend remoto
   const cleanBackendUrl = backendUrl.replace(/\/$/, "");
   const targetUrl = `${cleanBackendUrl}/api/meli/vendas/sync-progress`;
 
   console.log(`[SSE Proxy] Connecting to: ${targetUrl}`);
 
   const sessionCookie = req.cookies.get("session")?.value;
-
-  // Get the token from query param if provided, otherwise fallback to cookie logic if backend supports it
   const tokenParam = req.nextUrl.searchParams.get("token");
 
   const headers = new Headers();
   if (sessionCookie) {
     headers.set("Cookie", `session=${sessionCookie}`);
   }
-  // If the token was passed in the query, the backend might expect it in the query string of the proxied request
-  // or in the Authorization header. The original code sent it in the query string.
-  
-  // Let's construct the URL with query params
+
   const targetUrlObj = new URL(targetUrl);
   if (tokenParam) {
       targetUrlObj.searchParams.set("token", tokenParam);
   } else if (sessionCookie) {
-      // Some backends might accept token directly if extracted from cookie, but here we stick to the original logic
-      // which sent a token query param. If the token is in the cookie, we might need to extract it?
-      // The original hook extracted 'session' cookie and sent it as 'token' query param.
       targetUrlObj.searchParams.set("token", sessionCookie);
   }
 
@@ -47,8 +115,7 @@ export async function GET(req: NextRequest) {
       headers,
       method: "GET",
       cache: "no-store",
-      // Important: maintain the connection
-      keepalive: true, 
+      keepalive: true,
     });
 
     if (!response.ok) {
@@ -69,6 +136,9 @@ export async function GET(req: NextRequest) {
         "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Cache-Control",
+        "Access-Control-Allow-Credentials": "true"
       },
     });
   } catch (error) {
