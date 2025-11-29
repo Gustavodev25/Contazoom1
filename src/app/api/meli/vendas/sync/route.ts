@@ -28,24 +28,6 @@
  *    - Tentativas automáticas em caso de erros temporários (429, 500, 502, 503, 504)
  *    - Exponential backoff: 1s, 2s, 4s
  *    - Até 3 tentativas por requisição
- *
- * 5. PROGRESSO EM TEMPO REAL:
- *    - Server-Sent Events (SSE) para comunicação em tempo real
- *    - Mensagens detalhadas de progresso (página atual, período, porcentagem)
- *    - Mantém conexão viva durante o processo
- *
- * 6. GESTÃO DE TIMEOUT (Vercel Pro):
- *    - Limite de 60 segundos por função (58s efetivos + 2s margem)
- *    - Monitora tempo de execução constantemente
- *    - Para busca antes de atingir timeout
- *    - Sincronização subsequente continua automaticamente
- *
- * COMO FUNCIONA:
- * ==============
- * 1. Busca até 2.500 vendas mais recentes com paginação
- * 2. Se sobrar tempo (>15s), busca vendas antigas por períodos mensais
- * 3. Se um mês tem > 9.950 vendas, divide em períodos de 7-14 dias recursivamente
- * 4. Salva todas as vendas em lotes de 50 no banco de dados
  * 5. Envia progresso em tempo real via SSE
  * 6. Informa se há vendas restantes para próxima sincronização
  *
@@ -66,6 +48,9 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { sendProgressToUser, closeUserConnections } from "@/lib/sse-progress";
 import { invalidateVendasCache } from "@/lib/cache";
 import { smartRefreshMeliAccountToken } from "@/lib/meli";
+import { enqueueSales, getQueueStats, type QueuedSale } from "@/lib/redis-queue";
+import { processAllUserSales } from "@/lib/sync-worker";
+import { checkRedisHealth } from "@/lib/redis";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // 60 segundos (Vercel Pro)
@@ -105,7 +90,7 @@ type MeliOrderFreight = {
   quantity: number | null;
   unitPrice: number | null;
   diffBaseList: number | null;
-  
+
   adjustedCost: number | null;
   adjustmentSource: string | null;
 };
@@ -150,26 +135,26 @@ function extractOrderDate(order: unknown): Date | null {
 // Função para debug - identificar qual campo está causando o problema
 function debugFieldLengths(data: any, orderId: string) {
   const fieldLengths: { [key: string]: number } = {};
-  
+
   // Verificar todos os campos de string
   const stringFields = [
-    'orderId', 'userId', 'meliAccountId', 'status', 'conta', 'titulo', 'sku', 
+    'orderId', 'userId', 'meliAccountId', 'status', 'conta', 'titulo', 'sku',
     'comprador', 'logisticType', 'envioMode', 'shippingStatus', 'shippingId',
     'exposicao', 'tipoAnuncio', 'ads', 'plataforma', 'canal'
   ];
-  
+
   stringFields.forEach(field => {
     if (data[field] && typeof data[field] === 'string') {
       fieldLengths[field] = data[field].length;
     }
   });
-  
+
   // Log apenas se algum campo for muito longo
   const longFields = Object.entries(fieldLengths).filter(([_, length]) => length > 100);
   if (longFields.length > 0) {
     console.log(`[DEBUG] Venda ${orderId} - Campos longos:`, longFields);
   }
-  
+
   return fieldLengths;
 }
 
@@ -248,10 +233,10 @@ function calculateFreightAdjustment(
 
   const label =
     logisticType === 'self_service' ? 'FLEX' :
-    logisticType === 'drop_off' ? 'Correios' :
-    logisticType === 'xd_drop_off' ? 'Agência' :
-    logisticType === 'fulfillment' ? 'FULL' :
-    logisticType === 'cross_docking' ? 'Coleta' : logisticType;
+      logisticType === 'drop_off' ? 'Correios' :
+        logisticType === 'xd_drop_off' ? 'Agência' :
+          logisticType === 'fulfillment' ? 'FULL' :
+            logisticType === 'cross_docking' ? 'Coleta' : logisticType;
 
   return { adjustedCost: adj, adjustmentSource: label };
 }
@@ -373,7 +358,7 @@ function calculateMargemContribuicao(
 ): { valor: number; isMargemReal: boolean } {
   // Valores base (taxa já vem negativa, frete pode ser + ou -)
   const taxa = taxaPlataforma || 0;
-  
+
   // Se temos CMV, calculamos a margem de contribuição real
   // Fórmula: Margem = Valor Total + Taxa Plataforma + Frete - CMV
   if (cmv !== null && cmv !== undefined && cmv > 0) {
@@ -383,7 +368,7 @@ function calculateMargemContribuicao(
       isMargemReal: true
     };
   }
-  
+
   // Se não temos CMV, retornamos a receita líquida
   // Receita Líquida = Valor Total + Taxa Plataforma + Frete
   const receitaLiquida = valorTotal + taxa + frete;
@@ -415,7 +400,7 @@ type FetchOrdersResult = {
 
 type SyncError = {
   accountId: string;
-  mlUserId: number;
+  mlUserId: bigint;
   message: string;
 };
 
@@ -639,9 +624,8 @@ async function fetchOrdersPage({
     console.error(`[Sync] ⚠️ Erro ao buscar página ${pageNumber}:`, error);
     sendProgressToUser(userId, {
       type: "sync_warning",
-      message: `Erro ao buscar página ${pageNumber}: ${
-        error instanceof Error ? error.message : "Falha desconhecida"
-      }`,
+      message: `Erro ao buscar página ${pageNumber}: ${error instanceof Error ? error.message : "Falha desconhecida"
+        }`,
       errorCode: "PAGE_FETCH_ERROR",
     });
     return result;
@@ -679,8 +663,7 @@ async function fetchOrdersPage({
   }
 
   console.log(
-    `[Sync] 📄 Página ${pageNumber}: ${orders.length} vendas (offset ${offset})${
-      result.total ? ` (${Math.min(offset + orders.length, result.total)}/${result.total})` : ""
+    `[Sync] 📄 Página ${pageNumber}: ${orders.length} vendas (offset ${offset})${result.total ? ` (${Math.min(offset + orders.length, result.total)}/${result.total})` : ""
     }`,
   );
 
@@ -841,9 +824,8 @@ async function fetchAllOrdersForAccount(
 
         sendProgressToUser(userId, {
           type: "sync_progress",
-          message: `${account.nickname || `Conta ${account.ml_user_id}`}: ${
-            results.length
-          }/${discoveredTotal ?? results.length} vendas baixadas (p�gina ${pageNumber})`,
+          message: `${account.nickname || `Conta ${account.ml_user_id}`}: ${results.length
+            }/${discoveredTotal ?? results.length} vendas baixadas (p�gina ${pageNumber})`,
           current: results.length,
           total: discoveredTotal ?? results.length,
           fetched: results.length,
@@ -856,9 +838,8 @@ async function fetchAllOrdersForAccount(
         console.error(`[Sync] ?? Erro inesperado na p�gina ${pageNumber}:`, error);
         sendProgressToUser(userId, {
           type: "sync_warning",
-          message: `Erro inesperado na p�gina ${pageNumber}: ${
-            error instanceof Error ? error.message : "Falha desconhecida"
-          }`,
+          message: `Erro inesperado na p�gina ${pageNumber}: ${error instanceof Error ? error.message : "Falha desconhecida"
+            }`,
           errorCode: "PAGE_FETCH_ERROR",
         });
       }
@@ -1707,7 +1688,7 @@ export async function POST(req: NextRequest) {
   if (requestBody.accountIds && requestBody.accountIds.length > 0) {
     accountsWhere.id = { in: requestBody.accountIds };
   }
-  
+
   const accounts = await prisma.meliAccount.findMany({
     where: accountsWhere,
     orderBy: { created_at: "desc" },
@@ -1724,7 +1705,7 @@ export async function POST(req: NextRequest) {
       fetched: 0,
       expected: 0
     });
-    
+
     return NextResponse.json({
       syncedAt: new Date().toISOString(),
       accounts: [] as AccountSummary[],
@@ -1740,7 +1721,7 @@ export async function POST(req: NextRequest) {
   let totalFetchedOrders = 0;
   let totalSavedOrders = 0;
   let forcedStop = false;
-  
+
   // Preparar steps para cada conta
   const steps = accounts.map((acc: any) => ({
     accountId: acc.id,
@@ -2000,39 +1981,101 @@ export async function POST(req: NextRequest) {
           throw new Error(`Falha ao buscar vendas: ${fetchMsg}`);
         }
 
-        console.log(`[Sync] 📥 Iniciando salvamento de ${allOrders.length} vendas no banco...`);
+        // NOVA LÓGICA COM REDIS: Two-phase sync
+        const isRedisHealthy = await checkRedisHealth();
+        console.log(`[Sync] Redis status: ${isRedisHealthy ? '✅ Available' : '⚠️ Unavailable - using direct save'}`);
 
-        // Enviar evento SSE informando que vai começar a salvar
-        sendProgressToUser(userId, {
-          type: "sync_progress",
-          message: `Preparando para salvar ${allOrders.length} vendas no banco de dados...`,
-          current: 0,
-          total: allOrders.length,
-          fetched: 0,
-          expected: allOrders.length,
-          accountId: current.id,
-          accountNickname: current.nickname || `Conta ${current.ml_user_id}`
-        });
+        if (isRedisHealthy && allOrders.length > 0) {
+          // === FASE 1: Enqueue no Redis ===
+          console.log(`[Sync] 📦 Fase 1: Enfileirando ${allOrders.length} vendas no Redis...`);
 
-        try {
-          await processAndSave(allOrders, expectedTotal, 'completo');
-          console.log(`[Sync] ✅ Salvamento concluído para conta ${current.ml_user_id}`);
-
-          // Enviar evento SSE confirmando conclusão do salvamento
           sendProgressToUser(userId, {
-            type: "sync_progress",
-            message: `✅ Salvamento concluído para ${current.nickname || current.ml_user_id}`,
-            current: allOrders.length,
+            type: "sync_download_progress",
+            message: `Salvando ${allOrders.length} vendas no cache...`,
+            current: 0,
             total: allOrders.length,
-            fetched: allOrders.length,
-            expected: allOrders.length,
+            phase: 'downloading',
             accountId: current.id,
             accountNickname: current.nickname || `Conta ${current.ml_user_id}`
           });
-        } catch (saveError) {
-          const saveMsg = saveError instanceof Error ? saveError.message : 'Erro ao salvar vendas';
-          console.error(`[Sync] ❌ Erro ao salvar vendas da conta ${current.ml_user_id}:`, saveError);
-          throw new Error(`Falha ao salvar vendas: ${saveMsg}`);
+
+          // Convert to QueuedSale format
+          const queuedSales: QueuedSale[] = allOrders.map(order => ({
+            accountId: order.accountId,
+            accountNickname: order.accountNickname ?? null,
+            mlUserId: Number(order.mlUserId),
+            order: order.order,
+            shipment: order.shipment,
+            freight: order.freight,
+          }));
+
+          const enqueueResult = await enqueueSales(userId, current.id, queuedSales);
+
+          if (enqueueResult.success) {
+            console.log(`[Sync] ✅ ${enqueueResult.count} vendas enfileiradas no Redis`);
+
+            sendProgressToUser(userId, {
+              type: "sync_download_complete",
+              message: `${enqueueResult.count} vendas baixadas e armazenadas`,
+              current: enqueueResult.count,
+              total: enqueueResult.count,
+              phase: 'downloading',
+            });
+
+            // === FASE 2: Processar Redis → PostgreSQL ===
+            console.log(`[Sync] 💾 Fase 2: Processando fila Redis → PostgreSQL...`);
+
+            sendProgressToUser(userId, {
+              type: "sync_save_start",
+              message: `Iniciando salvamento no banco de dados...`,
+              phase: 'saving',
+            });
+
+            try {
+              const workerResult = await processAllUserSales(userId);
+              console.log(`[Sync] ✅ Worker completou: ${workerResult.totalProcessed} salvas, ${workerResult.totalErrors} erros`);
+
+              totalSavedOrders += workerResult.totalProcessed;
+
+              sendProgressToUser(userId, {
+                type: "sync_save_complete",
+                message: `✅ ${workerResult.totalProcessed} vendas salvas no banco`,
+                current: workerResult.totalProcessed,
+                total: workerResult.totalProcessed,
+                phase: 'complete',
+                accountId: current.id,
+                accountNickname: current.nickname || `Conta ${current.ml_user_id}`
+              });
+            } catch (workerError) {
+              console.error(`[Sync] ❌ Erro no worker Redis → PostgreSQL:`, workerError);
+              throw new Error(`Erro ao processar fila: ${workerError}`);
+            }
+          } else {
+            // Redis falhou, usar salvamento direto
+            console.warn(`[Sync] ⚠️ Falha ao enfileirar no Redis, usando salvamento direto`);
+            await processAndSave(allOrders, expectedTotal, 'completo');
+          }
+        } else {
+          // Redis indisponível ou sem vendas, usar salvamento direto
+          console.log(`[Sync] 📥 Redis indisponível ou sem vendas, usando salvamento direto`);
+
+          sendProgressToUser(userId, {
+            type: "sync_progress",
+            message: `Salvando ${allOrders.length} vendas diretamente no banco...`,
+            current: 0,
+            total: allOrders.length,
+            accountId: current.id,
+            accountNickname: current.nickname || `Conta ${current.ml_user_id}`
+          });
+
+          try {
+            await processAndSave(allOrders, expectedTotal, 'completo');
+            console.log(`[Sync] ✅ Salvamento direto concluído para conta ${current.ml_user_id}`);
+          } catch (saveError) {
+            const saveMsg = saveError instanceof Error ? saveError.message : 'Erro ao salvar vendas';
+            console.error(`[Sync] ❌ Erro ao salvar vendas da conta ${current.ml_user_id}:`, saveError);
+            throw new Error(`Falha ao salvar vendas: ${saveMsg}`);
+          }
         }
 
       } catch (error) {

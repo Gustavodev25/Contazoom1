@@ -3,7 +3,7 @@ import { toast } from '@/hooks/use-toast';
 import { API_CONFIG } from "@/lib/api-config";
 
 interface VendasSyncProgress {
-  type: "connected" | "sync_start" | "sync_progress" | "sync_complete" | "sync_error" | "sync_warning" | "sync_debug" | "sync_continue";
+  type: "connected" | "heartbeat" | "sync_start" | "sync_progress" | "sync_download_progress" | "sync_download_complete" | "sync_save_start" | "sync_save_progress" | "sync_save_complete" | "sync_complete" | "sync_error" | "sync_warning" | "sync_debug" | "sync_continue";
   message: string;
   current?: number;
   total?: number;
@@ -19,6 +19,7 @@ interface VendasSyncProgress {
   debugData?: any;
   hasMoreToSync?: boolean;
   pendingJobs?: number;
+  phase?: 'downloading' | 'saving' | 'complete';  // NEW: Track sync phase
 }
 
 interface UseVendasSyncProgressReturn {
@@ -66,7 +67,7 @@ export function useVendasSyncProgress(): UseVendasSyncProgressReturn {
     // Force usage of localhost:3000 if in dev and using proxy, to match user request if proxying to self.
     // Actually, if the proxy at /api/... forwards to localhost:3000, and we are on localhost:3000, it loops.
     // If we are on localhost:3001, it works.
-    
+
     const url = token ? `${baseUrl}?token=${token}` : baseUrl;
 
     console.log('[SSE useVendasSyncProgress] Connecting to:', url);
@@ -229,6 +230,113 @@ export function useVendasSyncProgress(): UseVendasSyncProgressReturn {
             duration: 8000,
           });
           console.warn('[SSE useVendasSyncProgress] Toast de aviso:', progressData.message);
+
+        } else if (progressData.type === "sync_download_progress") {
+          // FASE 1: Baixando da API e salvando no Redis
+          const downloadMsg = progressData.total && progressData.current
+            ? `${progressData.message} (${percentual}%)`
+            : progressData.message;
+
+          if (toastRef.current) {
+            try {
+              toastRef.current.dismiss();
+            } catch (e) {
+              // Ignorar erro
+            }
+          }
+
+          toastRef.current = toast({
+            title: "📥 Baixando Vendas",
+            description: `${downloadMsg}\\n\\nFase 1/2: Download da API`,
+            duration: Infinity,
+          });
+
+          console.log('[SSE] Download progress:', downloadMsg);
+
+        } else if (progressData.type === "sync_download_complete") {
+          // Fase 1 completa
+          const completeDownloadMsg = `✅ ${progressData.message}\\n\\n🔄 Iniciando salvamento no banco...`;
+
+          if (toastRef.current) {
+            try {
+              toastRef.current.dismiss();
+            } catch (e) {
+              // Ignorar
+            }
+          }
+
+          toastRef.current = toast({
+            title: "✅ Download Concluído",
+            description: completeDownloadMsg,
+            duration: Infinity,
+          });
+
+          console.log('[SSE] Download fase completa');
+
+        } else if (progressData.type === "sync_save_start") {
+          // FASE 2: Salvando Redis → PostgreSQL
+          if (toastRef.current) {
+            try {
+              toastRef.current.dismiss();
+            } catch (e) {
+              // Ignorar
+            }
+          }
+
+          toastRef.current = toast({
+            title: "💾 Salvando no Banco",
+            description: `${progressData.message}\\n\\nFase 2/2: Processando fila`,
+            duration: Infinity,
+          });
+
+          console.log('[SSE] Save phase iniciada');
+
+        } else if (progressData.type === "sync_save_progress") {
+          // Progresso do salvamento
+          const saveMsg = progressData.total && progressData.current
+            ? `Salvando: ${progressData.current}/${progressData.total} vendas (${percentual}%)`
+            : progressData.message;
+
+          if (toastRef.current) {
+            try {
+              toastRef.current.dismiss();
+            } catch (e) {
+              // Ignorar
+            }
+          }
+
+          toastRef.current = toast({
+            title: "💾 Salvando no Banco",
+            description: `${saveMsg}\\n\\nFase 2/2: Processando fila`,
+            duration: Infinity,
+          });
+
+          console.log('[SSE] Save progress:', saveMsg);
+
+        } else if (progressData.type === "sync_save_complete") {
+          // Fase 2 completa
+          const saveCompleteMsg = `✅ ${progressData.message}`;
+
+          if (toastRef.current) {
+            try {
+              toastRef.current.dismiss();
+            } catch (e) {
+              // Ignorar
+            }
+          }
+
+          toast({
+            title: "✅ Salvamento Concluído",
+            description: saveCompleteMsg,
+            duration: 5000,
+          });
+
+          toastRef.current = null;
+          console.log('[SSE] Save fase completa');
+
+        } else if (progressData.type === "heartbeat") {
+          // Heartbeat -  apenas log, não exibir toast
+          console.log('[SSE] Heartbeat recebido');
         }
 
         // Log para debug (mantido)

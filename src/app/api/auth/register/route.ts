@@ -105,8 +105,13 @@ export async function POST(request: NextRequest) {
         return response;
     } catch (error) {
         console.error('[API] Registration error:', error);
+        console.error('[API] Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            type: typeof error,
+        });
         return NextResponse.json(
-            { ok: false, error: 'Erro interno do servidor' },
+            { ok: false, error: error instanceof Error ? error.message : 'Erro interno do servidor' },
             { status: 500 }
         );
     }

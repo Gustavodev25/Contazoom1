@@ -166,7 +166,7 @@ export default function Cadastro() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nome: form.nome.trim(),
+          name: form.nome.trim(),  // ✅ Changed from 'nome' to 'name'
           email: normalizedEmail,
           senha: form.senha,
           pais: form.pais,

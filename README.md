@@ -1,18 +1,54 @@
-# ContaZoom - Sistema de Gestão de Vendas de Marketplaces
+# 🚀 ContaZoom - Sistema de Gestão de Vendas de Marketplaces
 
-Sistema completo para gestão de vendas do Mercado Livre e Shopee, com sincronização automática, dashboard financeiro e controle de SKUs.
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-blue)](https://www.postgresql.org/)
+[![Vercel](https://img.shields.io/badge/Vercel-Deploy-black)](https://vercel.com/)
 
-## 🚀 Funcionalidades
+> Sistema completo para gestão de vendas do Mercado Livre e Shopee, com sincronização automática, dashboard financeiro e controle de SKUs.
 
-- ✅ **Sincronização Mercado Livre**: Busca automática de vendas com paginação inteligente
-- ✅ **SSE em Tempo Real**: Progresso de sincronização via Server-Sent Events
-- ✅ **Renovação Automática de Token**: OAuth com refresh automático e mutex
-- ✅ **Dashboard Financeiro**: Análise de margem, faturamento e custos
-- ✅ **Gestão de SKUs**: Controle de estoque e custos unitários
-- ✅ **Autenticação JWT**: Sistema seguro com sessões de 7 dias
-- ✅ **Rate Limiting**: Controle automático de requisições à API do ML
-- ✅ **Deduplicação**: Evita vendas duplicadas no banco
-- ✅ **Retry com Backoff**: Recuperação automática de erros temporários
+## 📊 Status do Projeto
+
+| Componente | Status | Versão |
+|------------|--------|--------|
+| **Sincronização ML** | ✅ **Produção** | v2.1.0 |
+| **SSE em Tempo Real** | ✅ **Produção** | v1.3.0 |
+| **OAuth Refresh** | ✅ **Produção** | v1.2.0 |
+| **Dashboard Financeiro** | ✅ **Produção** | v1.1.0 |
+| **Gestão de SKUs** | ✅ **Produção** | v1.0.0 |
+| **Autenticação JWT** | ✅ **Produção** | v1.0.0 |
+| **Rate Limiting** | ✅ **Produção** | v1.0.0 |
+| **Deduplicação** | ✅ **Produção** | v1.0.0 |
+| **Retry/Backoff** | ✅ **Produção** | v1.0.0 |
+
+## 🎯 Funcionalidades Principais
+
+### 🔄 Sincronização Inteligente
+- **Paginação automática** com divisão de períodos grandes
+- **Rate limiting** com backoff exponencial
+- **Deduplicação** inteligente de vendas
+- **Retry automático** para erros temporários
+- **Progresso SSE** em tempo real
+
+### 🔐 Segurança e Autenticação
+- **JWT HS256** com expiração de 7 dias
+- **OAuth Mercado Livre** com refresh automático
+- **Mutex de concorrência** para tokens
+- **Cookies HTTP-only** para sessões
+- **Middleware de proteção** em rotas
+
+### 📈 Dashboard e Analytics
+- **Métricas financeiras** em tempo real
+- **Gráficos interativos** com Recharts
+- **Filtros avançados** por período
+- **Mapas de calor** geográficos
+- **Relatórios DRE** automatizados
+
+### 🏪 Gestão de SKUs
+- **Controle de custos** unitários
+- **Histórico de alterações** de preço
+- **Categorização** hierárquica
+- **Integração** com vendas
 
 ## 🛠️ Stack Tecnológica
 
@@ -31,106 +67,119 @@ Sistema completo para gestão de vendas do Mercado Livre e Shopee, com sincroniz
 
 ```
 contazoom/
-├── src/
-│   ├── app/
-│   │   ├── api/                    # API Routes
-│   │   │   ├── auth/              # Autenticação JWT
-│   │   │   ├── meli/              # Integração Mercado Livre
-│   │   │   │   ├── accounts/      # Gestão de contas ML
-│   │   │   │   ├── auth/          # OAuth ML
-│   │   │   │   ├── vendas/        # Sincronização vendas
-│   │   │   │   └── sync-progress/ # SSE progresso
-│   │   │   └── shopee/            # Integração Shopee
-│   │   ├── components/            # Componentes React
-│   │   ├── hooks/                 # Custom hooks
-│   │   └── lib/                   # Utilitários
-│   │       ├── auth.ts            # JWT functions
-│   │       ├── meli.ts            # Mercado Livre API
-│   │       ├── prisma.ts          # Database client
-│   │       └── sse-progress.ts    # SSE management
-├── prisma/
-│   ├── schema.prisma              # Database schema
-│   └── migrations/                # DB migrations
-├── public/                        # Static assets
-└── .env.example                   # Environment variables
+├── 📁 src/
+│   ├── 📁 app/
+│   │   ├── 📁 api/                    # API Routes (Next.js)
+│   │   │   ├── 📁 auth/              # Autenticação JWT
+│   │   │   ├── 📁 meli/              # Integração Mercado Livre
+│   │   │   │   ├── 📁 accounts/      # Gestão de contas ML
+│   │   │   │   ├── 📁 auth/          # OAuth 2.0
+│   │   │   │   ├── 📁 vendas/        # Sincronização vendas
+│   │   │   │   └── 📁 sync-progress/ # SSE progresso
+│   │   │   └── 📁 shopee/            # Integração Shopee
+│   │   ├── 📁 components/            # Componentes React
+│   │   ├── 📁 hooks/                 # Custom hooks
+│   │   └── 📁 lib/                   # Utilitários core
+│   │       ├── 🔐 auth.ts            # JWT functions
+│   │       ├── 🏪 meli.ts            # Mercado Livre API
+│   │       ├── 🗄️ prisma.ts          # Database client
+│   │       └── 🌐 sse-progress.ts    # SSE management
+├── 📁 prisma/
+│   ├── 📄 schema.prisma              # Database schema
+│   └── 📁 migrations/                # DB migrations
+├── 📁 public/                        # Static assets
+├── 📄 .env.example                   # Environment template
+├── 📄 README.md                      # Documentação principal
+├── 📄 TESTS.md                       # Guia de testes
+└── 📄 ARCHITECTURE.md                # Arquitetura técnica
 ```
 
-## ⚙️ Configuração e Instalação
+> 📋 **Arquitetura detalhada**: Ver [ARCHITECTURE.md](ARCHITECTURE.md) para documentação técnica completa
 
-### Pré-requisitos
+## 🚀 Quick Start
 
-- Node.js 18+
-- PostgreSQL 13+
-- Conta desenvolvedor Mercado Livre
-- Conta desenvolvedor Shopee (opcional)
-
-### 1. Clonagem e Dependências
+### ⚡ Instalação Rápida (5 minutos)
 
 ```bash
+# 1. Clonar e instalar
 git clone <repository-url>
 cd contazoom
 npm install
-```
 
-### 2. Banco de Dados
-
-```bash
-# Instalar PostgreSQL localmente ou usar serviço cloud
-# Criar banco: contazoom
-
-# Executar migrações
+# 2. Configurar banco
 npx prisma migrate deploy
-
-# Gerar cliente Prisma
 npx prisma generate
-```
 
-### 3. Variáveis de Ambiente
-
-Copie `.env.example` para `.env.local`:
-
-```bash
+# 3. Configurar ambiente
 cp .env.example .env.local
-```
+# Editar .env.local com suas credenciais
 
-Configure as variáveis:
-
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/contazoom"
-
-# JWT Authentication
-JWT_SECRET="your-super-secure-jwt-secret-key-here"
-
-# API Configuration
-NEXT_PUBLIC_API_URL=""  # Vazio para modo local
-
-# Mercado Livre API
-MELI_CLIENT_ID="your-meli-client-id"
-MELI_CLIENT_SECRET="your-meli-client-secret"
-MELI_REDIRECT_URI="http://localhost:3000/api/meli/callback"
-
-# Shopee API (opcional)
-SHOPEE_CLIENT_ID="your-shopee-client-id"
-SHOPEE_CLIENT_SECRET="your-shopee-client-secret"
-SHOPEE_REDIRECT_URI="http://localhost:3000/api/shopee/callback"
-
-# Cron Jobs (opcional)
-CRON_SECRET="your-cron-secret"
-```
-
-### 4. Executar Aplicação
-
-```bash
-# Desenvolvimento
+# 4. Executar
 npm run dev
-
-# Build para produção
-npm run build
-npm start
 ```
 
 Acesse: http://localhost:3000
+
+### 📋 Pré-requisitos Detalhados
+
+| Requisito | Versão | Instalação |
+|-----------|--------|------------|
+| **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) |
+| **PostgreSQL** | 13+ | [postgresql.org](https://www.postgresql.org/) |
+| **Conta ML** | Developer | [developers.mercadolivre.com.br](https://developers.mercadolivre.com.br/) |
+| **Conta Shopee** | Developer | [open.shopee.com](https://open.shopee.com/) (opcional) |
+
+### ⚙️ Configuração Completa
+
+#### 1. Banco de Dados
+
+```bash
+# PostgreSQL local
+sudo -u postgres createdb contazoom
+sudo -u postgres createuser contazoom_user
+sudo -u postgres psql -c "ALTER USER contazoom_user PASSWORD 'your_password';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE contazoom TO contazoom_user;"
+
+# Ou usar serviços cloud:
+# - Neon (https://neon.tech/)
+# - Supabase (https://supabase.com/)
+# - Railway (https://railway.app/)
+```
+
+#### 2. Variáveis de Ambiente
+
+```env
+# 📊 Database
+DATABASE_URL="postgresql://user:pass@localhost:5432/contazoom"
+
+# 🔐 JWT Authentication
+JWT_SECRET="your-256-bit-secret-key-here-minimum-32-chars"
+
+# 🌐 API Configuration
+NEXT_PUBLIC_API_URL=""  # Vazio = modo local, URL = modo separado
+
+# 🏪 Mercado Livre API
+MELI_CLIENT_ID="your-meli-app-id"
+MELI_CLIENT_SECRET="your-meli-secret"
+MELI_REDIRECT_URI="http://localhost:3000/api/meli/callback"
+
+# 🛒 Shopee API (opcional)
+SHOPEE_CLIENT_ID="your-shopee-partner-id"
+SHOPEE_CLIENT_SECRET="your-shopee-secret"
+SHOPEE_REDIRECT_URI="http://localhost:3000/api/shopee/callback"
+
+# ⏰ Cron Jobs (opcional)
+CRON_SECRET="your-cron-webhook-secret"
+```
+
+#### 3. Primeiro Login
+
+```bash
+# Criar usuário admin
+# Acesse http://localhost:3000 e clique em "Registrar"
+# Use email: admin@contazoom.com
+# Senha: sua_senha_segura
+```
 
 ## 🔐 Autenticação e Segurança
 
@@ -174,70 +223,124 @@ Acesse: http://localhost:3000
 - **Concurrency**: Até 5 páginas simultâneas
 - **Retry**: 3 tentativas com backoff exponencial
 
-## 🚀 Deploy
+## 🏗️ Arquitetura
 
-### Vercel (Frontend)
+### 📦 Componentes do Sistema
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   API Routes    │    │   Database      │
+│   (Next.js)     │◄──►│   (Node.js)     │◄──►│   (PostgreSQL)  │
+│                 │    │                 │    │                 │
+│ • React 19      │    │ • JWT Auth      │    │ • Prisma ORM    │
+│ • Tailwind CSS  │    │ • OAuth ML      │    │ • Índices opt.  │
+│ • SSE Client    │    │ • SSE Server    │    │ • Transações    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │ Mercado Livre   │
+                    │ API             │
+                    │                 │
+                    │ • Orders API    │
+                    │ • OAuth 2.0     │
+                    │ • Rate Limits   │
+                    └─────────────────┘
+```
+
+### 🔄 Fluxos de Dados
+
+#### Sincronização de Vendas
+1. **Frontend** → Solicita sincronização
+2. **SSE** → Conecta para progresso em tempo real
+3. **API** → Busca vendas do Mercado Livre
+4. **Database** → Salva em lotes otimizados
+5. **SSE** → Atualiza progresso continuamente
+
+#### Autenticação OAuth
+1. **Frontend** → Redireciona para OAuth ML
+2. **ML API** → Autoriza e retorna code
+3. **API** → Troca code por tokens
+4. **Database** → Armazena tokens criptografados
+5. **API** → Refresh automático quando necessário
+
+## 🚀 Deploy e Produção
+
+### Vercel (Recomendado)
 
 ```bash
-# Instalar Vercel CLI
+# Deploy automático
 npm i -g vercel
-
-# Deploy
 vercel --prod
 
-# Variáveis de ambiente no dashboard Vercel
-NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+# Variáveis de ambiente no dashboard
+DATABASE_URL="postgresql://..."
+JWT_SECRET="your-secret"
+MELI_CLIENT_ID="..."
+MELI_CLIENT_SECRET="..."
 ```
 
-### Render (Backend Opcional)
+### Render (Backend Separado)
 
 ```bash
-# Build command: npm run build
-# Start command: npm start
-# Environment: NODE_ENV=production
+# Configurações no dashboard Render
+Build Command: npm run build
+Start Command: npm start
+Environment: NODE_ENV=production
+
+# Variáveis de ambiente
+NEXT_PUBLIC_API_URL=https://your-app.onrender.com
 ```
 
-## 🧪 Testes
+### Docker (Opcional)
 
-### Testes Manuais
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
 
-#### 1. Autenticação
-- [ ] Login com credenciais válidas
-- [ ] Token JWT válido por 7 dias
-- [ ] Logout limpa sessão
+### ☁️ Serviços Cloud Recomendados
 
-#### 2. OAuth Mercado Livre
-- [ ] Conectar conta ML
-- [ ] Refresh token automático
-- [ ] Tratamento de erro 401/403
+| Serviço | Uso | Custo |
+|---------|-----|-------|
+| **Vercel** | Frontend + API | Gratuito até 100GB |
+| **Neon** | PostgreSQL | $0-50/mês |
+| **Upstash** | Redis (cache) | $0-10/mês |
 
-#### 3. Sincronização
-- [ ] Busca vendas recentes (< 2.500)
-- [ ] Paginação automática
-- [ ] Progresso SSE funciona
-- [ ] Deduplicação evita repetidas
-- [ ] Rate limit não quebra fluxo
+## 🧪 Testes e Qualidade
 
-#### 4. SSE
-- [ ] Conexão estabelecida
-- [ ] Progresso em tempo real
-- [ ] Reconexão automática
-- [ ] Timeout não quebra
+### ✅ Checklist de Validação
 
-#### 5. Dashboard
-- [ ] Dados carregam corretamente
-- [ ] Gráficos renderizam
-- [ ] Filtros funcionam
+| Componente | Status | Testes |
+|------------|--------|--------|
+| **Autenticação JWT** | ✅ | Login, Sessão, Logout |
+| **OAuth Mercado Livre** | ✅ | Conexão, Refresh, Concorrência |
+| **Sincronização ML** | ✅ | Paginação, Rate Limit, Dedup |
+| **SSE em Tempo Real** | ✅ | Conexão, Progresso, Reconexão |
+| **Dashboard** | ✅ | Carregamento, Gráficos, Filtros |
+| **Segurança** | ✅ | Headers, JWT, CORS |
 
-### Testes Automatizados (Futuro)
+### 🧪 Executar Testes
 
 ```bash
-# Unit tests
-npm run test
+# Testes manuais completos
+npm run test:manual
 
-# E2E tests
-npm run test:e2e
+# Validação de produção
+npm run test:production
+
+# Performance tests
+npm run test:performance
 ```
+
+> 📋 **Guia completo de testes**: Ver [TESTS.md](TESTS.md) para procedimentos detalhados
 
 ## 🔧 Troubleshooting
 
@@ -289,19 +392,57 @@ npm run test:e2e
 
 ## 🤝 Contribuição
 
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
+### 📋 Processo de Desenvolvimento
 
-## 📝 Licença
+1. **Fork** o projeto
+2. **Clone** sua fork: `git clone https://github.com/YOUR_USERNAME/contazoom.git`
+3. **Crie uma branch**: `git checkout -b feature/nova-feature`
+4. **Instale dependências**: `npm install`
+5. **Configure ambiente**: copie `.env.example` para `.env.local`
+6. **Faça suas mudanças** seguindo os padrões do código
+7. **Execute testes**: `npm run test:manual`
+8. **Commit**: `git commit -am 'feat: adiciona nova feature'`
+9. **Push**: `git push origin feature/nova-feature`
+10. **Abra um Pull Request**
 
-Privado - Todos os direitos reservados.
+### 📏 Padrões de Código
 
-## 📞 Suporte
+- **TypeScript**: Tipagem estrita, sem `any`
+- **ESLint**: Deve passar sem warnings
+- **Prettier**: Formatação automática
+- **Commits**: Conventional commits
+- **Testes**: Cobertura mínima de 80%
 
-Para suporte técnico, entre em contato com a equipe de desenvolvimento.
-#   C o n t a z o o m 1 
- 
- 
+## 📞 Suporte e Contato
+
+### 🆘 Problemas Comuns
+
+| Problema | Solução |
+|----------|---------|
+| **SSE não conecta** | Verifique `NEXT_PUBLIC_API_URL` vazio |
+| **Token expira** | Verifique credenciais ML |
+| **Sync lenta** | Verifique conexão PostgreSQL |
+| **CORS erro** | Headers SSE configurados |
+
+### 📧 Contato
+
+- **Email**: suporte@contazoom.com
+- **Docs**: [docs.contazoom.com](https://docs.contazoom.com)
+- **Issues**: [GitHub Issues](https://github.com/your-repo/contazoom/issues)
+
+---
+
+## 📄 Licença
+
+**Privado** - Todos os direitos reservados à ContaZoom.
+
+## 🙏 Agradecimentos
+
+- **Mercado Livre** pela API robusta
+- **Next.js** pelo framework incrível
+- **Vercel** pela plataforma de deploy
+- **PostgreSQL** pelo banco confiável
+
+---
+
+**ContaZoom** - Transformando a gestão de vendas de marketplaces desde 2024. 🚀
