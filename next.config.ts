@@ -12,9 +12,7 @@ const isVercel = process.env.VERCEL === '1';
 const nextConfig: NextConfig & { turbopack?: { root?: string } } = {
   output: 'standalone',
 
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
-  },
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 
   turbopack: {
     // Use absolute path to silence warning
