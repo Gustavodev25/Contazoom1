@@ -38,17 +38,6 @@ const nextConfig: NextConfig & { turbopack?: { root?: string } } = {
   // Keep this strictly positive; setting it to zero causes every page/route
   // to time out during static prerender (see Render deploy on 2025-11-14).
   staticPageGenerationTimeout,
-
-  // Na Vercel (frontend), pular arquivos Prisma do output
-  ...(isVercel && {
-    outputFileTracingExcludes: {
-      '*': [
-        'node_modules/@prisma/client/**/*',
-        'node_modules/@prisma/engines/**/*',
-        'node_modules/prisma/**/*',
-      ],
-    },
-  }),
 };
 
 export default nextConfig;
