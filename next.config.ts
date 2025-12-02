@@ -10,6 +10,12 @@ const isVercel = process.env.VERCEL === '1';
 // Explicitly set Turbopack's workspace root to this project directory
 // to avoid Next.js inferring a parent directory when multiple lockfiles exist.
 const nextConfig: NextConfig & { turbopack?: { root?: string } } = {
+  output: 'standalone',
+
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
+  },
+
   turbopack: {
     // Use absolute path to silence warning
     root: process.cwd(),
