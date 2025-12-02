@@ -6,7 +6,7 @@
 // Get backend URL from environment variable
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
-// Log configuration on initialization (client-side only)
+// Log configuration on initialization (client-side only) Logs
 if (typeof window !== 'undefined') {
     console.log('[API_CONFIG] Backend URL:', BACKEND_URL || '(vazio - usando proxy local)');
     console.log('[API_CONFIG] NEXT_PUBLIC_BACKEND_URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
